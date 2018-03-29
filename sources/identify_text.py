@@ -66,7 +66,7 @@ def ranges(data):
             prev = data[0]
         else:
             if x > prev+1:
-                list_of_ranges.append((start,data[index-1]))
+                list_of_ranges.append((start, data[index-1]))
                 start = x
             prev = x
     return list_of_ranges
@@ -78,9 +78,10 @@ def strip_row_and_save(black_and_white_image, ranges_to_scan):
 
 
 def strip_char_and_save(black_and_white_image, row_slice, col_slices):
+    top, bottom = row_slice
     for left, right in col_slices:
-        misc.imsave("..//test_images//tmp//char_{0}_{1}_{2}_{3}.gif".format(left, right, row_slice[0], row_slice[1]),
-                    black_and_white_image[row_slice[0]:row_slice[1]+1, left:right+1])
+        misc.imsave("..//test_images//tmp//char_{0}_{1}_{2}_{3}.gif".format(left, right, top, bottom),
+                    black_and_white_image[row_slice[0]:bottom+1, left:right+1])
 
 
 # simple function to create B&W filename
@@ -101,12 +102,29 @@ def get_character_coordinates(color_file_name):
     return char_co_ordinates
 
 
+# This is just a fun method to demonstrate that we have actually found the character coordinates
+# and we are ready for the next step. Would be removed in the log run
+def mark_for_fun(color_file_name, coordinates):
+    black_and_white_image = black_and_white_copy_of(color_file_name)
+    for row in coordinates:
+        row_slice = coordinates[row]['row_slice']
+        for left, right in coordinates[row]['col_slices']:
+            top, bottom = row_slice
+            black_and_white_image[top][left] = 0
+            black_and_white_image[top][right+1] = 0
+            black_and_white_image[bottom+1][left] = 0
+            black_and_white_image[bottom+1][right+1] = 0
+    misc.imsave("..//test_images//tmp//marked.gif", black_and_white_image)
+
+
 def main(color_file_name):
-    print(get_character_coordinates(color_file_name))
+    coordinates = get_character_coordinates(color_file_name)
+    print(coordinates)
+    mark_for_fun(color_file_name, coordinates)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        main(color_file_name = '..//test_images//manathil_uruthi_vendum.gif')
+        main(color_file_name = '..//test_images//pilayar_vanakkam.jpg')
     else:
         main(sys.argv[1])
