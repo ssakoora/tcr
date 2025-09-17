@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, send_file, jsonify, url_for
+from flask_cors import CORS
 import os
 import tempfile
 import uuid
@@ -28,6 +29,7 @@ except ImportError:
     PIL_AVAILABLE = False
 
 app = Flask(__name__)
+CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['RESULTS_FOLDER'] = 'results'
