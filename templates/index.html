@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamil Character Recognition - Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-text {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin: 0.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress {
+            display: none;
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .error {
+            color: #e74c3c;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #ffeaea;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .file-info {
+            display: none;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+            color: #666;
+        }
+        
+        .supported-formats {
+            margin-top: 2rem;
+            color: #888;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tamil Character Recognition</h1>
+        <p class="subtitle">Upload an image to extract individual characters</p>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">
+                    Click here or drag and drop your image
+                </div>
+                <input type="file" id="fileInput" name="file" class="file-input" accept=".png,.jpg,.jpeg,.gif,.bmp">
+                <button type="button" class="btn" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+            </div>
+            
+            <div class="file-info" id="fileInfo"></div>
+            
+            <div class="progress" id="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p>Processing your image...</p>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <button type="submit" class="btn" id="uploadBtn" disabled>
+                Extract Characters
+            </button>
+        </form>
+        
+        <div class="supported-formats">
+            Supported formats: PNG, JPG, JPEG, GIF, BMP
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progress = document.getElementById('progress');
+        const progressFill = document.getElementById('progressFill');
+        const error = document.getElementById('error');
+        const fileInfo = document.getElementById('fileInfo');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <strong>Selected file:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                    <strong>Type:</strong> ${file.type}
+                `;
+                uploadBtn.disabled = false;
+                error.style.display = 'none';
+            }
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('Please select a file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            uploadBtn.disabled = true;
+            progress.style.display = 'block';
+            error.style.display = 'none';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    showError(result.error || 'An error occurred while processing the image.');
+                }
+            } catch (err) {
+                showError('Network error. Please try again.');
+            } finally {
+                uploadBtn.disabled = false;
+                progress.style.display = 'none';
+            }
+        });
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
