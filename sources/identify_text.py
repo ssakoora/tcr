@@ -1,6 +1,27 @@
 import sys
 import numpy as np
-from scipy import misc
+
+try:
+    from scipy import misc
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
+try:
+    import imageio.v2 as imageio
+    IMAGEIO_AVAILABLE = True
+except ImportError:
+    try:
+        import imageio
+        IMAGEIO_AVAILABLE = True
+    except ImportError:
+        IMAGEIO_AVAILABLE = False
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 
 # This would be the eventual public method, when this is rewritten as a class
@@ -30,7 +51,16 @@ def transform_to_black_and_white(rgb):
 # We are going to make this black and white image into a binary black and white image.
 # I mean, we either have a DARK pixel = 0; or a BRIGHT pixel = 255, nothing in the middle.
 def bw_converted_img_data(color_file_name):
-    image_array = misc.imread(color_file_name)
+    if IMAGEIO_AVAILABLE:
+        image_array = imageio.imread(color_file_name)
+    elif PIL_AVAILABLE:
+        img = Image.open(color_file_name)
+        image_array = np.array(img)
+    elif SCIPY_AVAILABLE:
+        image_array = misc.imread(color_file_name)
+    else:
+        raise ImportError("No image reading library available. Please install imageio or Pillow.")
+    
     return bw_copy_img_data(image_array)
 
 
@@ -93,7 +123,8 @@ def ranges(data):
 
 def strip_row_and_save(black_and_white_image, ranges_to_scan):
     for top, bottom in ranges_to_scan:
-        misc.imsave("..//test_images//tmp//stripped_{1}.gif".format(top), black_and_white_image[top:bottom + 1])
+        filepath = "..//test_images//tmp//stripped_{0}.gif".format(top)
+        _save_image_helper(filepath, black_and_white_image[top:bottom + 1])
 
 
 
@@ -116,7 +147,21 @@ def mark_for_fun(color_file_name, coordinates):
             black_and_white_image[top][right + 1] = 0
             black_and_white_image[bottom + 1][left] = 0
             black_and_white_image[bottom + 1][right + 1] = 0
-    misc.imsave("..//test_images//tmp//marked.gif", black_and_white_image)
+    _save_image_helper("..//test_images//tmp//marked.gif", black_and_white_image)
+
+def _save_image_helper(filepath, image_array):
+    import os
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
+    if IMAGEIO_AVAILABLE:
+        imageio.imwrite(filepath, image_array)
+    elif PIL_AVAILABLE:
+        img = Image.fromarray(image_array)
+        img.save(filepath)
+    elif SCIPY_AVAILABLE:
+        misc.imsave(filepath, image_array)
+    else:
+        raise ImportError("No image writing library available. Please install imageio or Pillow.")
 
 
 def main(color_file_name):
