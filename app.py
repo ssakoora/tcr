@@ -5,9 +5,27 @@ import uuid
 import shutil
 from werkzeug.utils import secure_filename
 import sys
+import numpy as np
+from collections import defaultdict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'sources'))
 from TextWithImage import ImageWithText
+
+try:
+    import imageio.v2 as imageio
+    IMAGEIO_AVAILABLE = True
+except ImportError:
+    try:
+        import imageio
+        IMAGEIO_AVAILABLE = True
+    except ImportError:
+        IMAGEIO_AVAILABLE = False
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -75,10 +93,13 @@ def show_results(session_id):
         if filename.startswith('char_') and filename.endswith('.gif'):
             character_files.append(filename)
     
+    character_frequencies = count_character_frequencies(results_dir, character_files)
+    
     return render_template('results.html', 
                          session_id=session_id, 
                          character_files=character_files,
-                         character_count=len(character_files))
+                         character_count=len(character_files),
+                         character_frequencies=character_frequencies)
 
 @app.route('/character/<session_id>/<filename>')
 def serve_character(session_id, filename):
@@ -89,6 +110,80 @@ def serve_character(session_id, filename):
         return send_file(file_path, mimetype='image/gif')
     else:
         return "File not found", 404
+
+def load_character_image(filepath):
+    """Load a character image file and return as numpy array"""
+    if IMAGEIO_AVAILABLE:
+        return imageio.imread(filepath)
+    elif PIL_AVAILABLE:
+        img = Image.open(filepath)
+        return np.array(img)
+    else:
+        raise ImportError("No image reading library available")
+
+def calculate_image_similarity(img1, img2):
+    """Calculate similarity between two character images using normalized cross-correlation"""
+    if img1.shape != img2.shape:
+        return 0.0
+    
+    img1_norm = img1.astype(np.float32) / 255.0
+    img2_norm = img2.astype(np.float32) / 255.0
+    
+    correlation = np.corrcoef(img1_norm.flatten(), img2_norm.flatten())[0, 1]
+    
+    if np.isnan(correlation):
+        if np.allclose(img1_norm, img2_norm):
+            return 1.0
+        else:
+            return 0.0
+    
+    return max(0.0, correlation)
+
+def count_character_frequencies(results_dir, character_files):
+    """Count how many times each character appears by grouping similar images"""
+    if not character_files:
+        return {}
+    
+    images = {}
+    for filename in character_files:
+        filepath = os.path.join(results_dir, filename)
+        try:
+            images[filename] = load_character_image(filepath)
+        except Exception:
+            continue
+    
+    if not images:
+        return {}
+    
+    similarity_threshold = 0.85  # Adjust this threshold as needed
+    character_groups = []
+    processed = set()
+    
+    for filename1, img1 in images.items():
+        if filename1 in processed:
+            continue
+            
+        current_group = [filename1]
+        processed.add(filename1)
+        
+        for filename2, img2 in images.items():
+            if filename2 in processed:
+                continue
+                
+            similarity = calculate_image_similarity(img1, img2)
+            if similarity >= similarity_threshold:
+                current_group.append(filename2)
+                processed.add(filename2)
+        
+        character_groups.append(current_group)
+    
+    frequencies = {}
+    for group in character_groups:
+        group_size = len(group)
+        for filename in group:
+            frequencies[filename] = group_size
+    
+    return frequencies
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

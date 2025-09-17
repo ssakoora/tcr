@@ -90,6 +90,7 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
         }
         
         .character-item:hover {
@@ -110,6 +111,24 @@
             font-size: 0.8rem;
             color: #666;
             font-weight: 500;
+        }
+        
+        .frequency-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            border: 2px solid white;
         }
         
         .actions {
@@ -228,6 +247,9 @@
                 <div class="characters-grid">
                     {% for filename in character_files %}
                         <div class="character-item" onclick="showModal('{{ url_for('serve_character', session_id=session_id, filename=filename) }}', '{{ filename }}')">
+                            {% if character_frequencies.get(filename, 1) > 1 %}
+                            <div class="frequency-badge">{{ character_frequencies[filename] }}</div>
+                            {% endif %}
                             <img src="{{ url_for('serve_character', session_id=session_id, filename=filename) }}" 
                                  alt="Character {{ loop.index }}" 
                                  class="character-image">
